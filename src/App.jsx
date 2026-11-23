@@ -930,20 +930,62 @@ if (imageFile) {
             />
 
             <label style={formLabel}>Category</label>
-            <select
-              style={inputStyle}
-              value={productForm.category_id}
-              onChange={(e) => setProductForm({
-                ...productForm, category_id: e.target.value
-              })}
-            >
-              <option value="">Select category</option>
-              {categories.map((category) => (
-                <option key={category.id} value={category.id}>
-                  {category.name || category.title}
-                </option>
-              ))}
-            </select>
+<select
+  style={inputStyle}
+  value={productForm.category_id}
+  onChange={(e) => setProductForm({
+    ...productForm, category_id: e.target.value
+  })}
+>
+  <option value="">Select category</option>
+  {categories.map((category) => (
+    <option key={category.id} value={category.id}>
+      {category.name || category.title}
+    </option>
+  ))}
+</select>
+
+<label style={formLabel}>Available Sizes</label>
+
+<div style={{
+  display: "flex",
+  flexWrap: "wrap",
+  gap: 10,
+  marginTop: 10
+}}>
+  {["XS", "S", "M", "L", "XL", "XXL", "Free Size"].map((size) => (
+    <label
+      key={size}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 6,
+        padding: "9px 12px",
+        border: "1px solid #e5d5dc",
+        borderRadius: 8,
+        background: productForm.sizes.includes(size) ? "#f8edf2" : "#fff",
+        cursor: "pointer",
+        fontSize: 13
+      }}
+    >
+      <input
+        type="checkbox"
+        checked={productForm.sizes.includes(size)}
+        onChange={(e) => {
+          const updatedSizes = e.target.checked
+            ? [...productForm.sizes, size]
+            : productForm.sizes.filter((item) => item !== size);
+
+          setProductForm({
+            ...productForm,
+            sizes: updatedSizes
+          });
+        }}
+      />
+      {size}
+    </label>
+  ))}
+</div>
 
             <label style={checkLabel}>
               <input
