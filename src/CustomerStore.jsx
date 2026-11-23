@@ -26,7 +26,7 @@ export default function CustomerStore() {
   const [authMethod, setAuthMethod] = useState("email");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [phone, setPhone] = useState("");
+  const [phone, setPhone] = useState(""); // Indian 10-digit mobile number; +91 is added when sending OTP.
   const [otp, setOtp] = useState("");
   const [otpSent, setOtpSent] = useState(false);
   const [fullName, setFullName] = useState("");
@@ -79,6 +79,20 @@ export default function CustomerStore() {
 
   useEffect(() => {
     loadStore();
+
+    // Refresh customer-facing branding when a customer returns to this tab.
+    const refreshStoreSettings = async () => {
+      const { data, error } = await supabase
+        .from("store_settings")
+        .select("*")
+        .limit(1)
+        .maybeSingle();
+
+      if (!error) setSettings(data || null);
+    };
+
+    window.addEventListener("focus", refreshStoreSettings);
+    return () => window.removeEventListener("focus", refreshStoreSettings);
   }, []);
 
   async function loadStore() {
@@ -108,19 +122,26 @@ export default function CustomerStore() {
     try {
       if (authMode === "signup") {
         const { error } = await supabase.auth.signUp({
-          email: email.trim(),
+          email: email.trim().toLowerCase(),
           password,
           options: { data: { full_name: fullName.trim() } }
         });
         if (error) throw error;
-        setAuthMessage("Registration submitted. Check your email if confirmation is required, then sign in.");
+        setAuthMessage("Account created. If email confirmation is enabled, open the confirmation link sent to your inbox before logging in. Check Spam/Junk too.");
         setAuthMode("login");
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+        const { error } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password });
         if (error) throw error;
       }
     } catch (error) {
-      setAuthError(error.message || "Unable to continue. Please try again.");
+      const message = error.message || "";
+      if (message.toLowerCase().includes("email not confirmed")) {
+        setAuthError("Please open the confirmation link sent to your email, then return here and log in. Check Spam/Junk too.");
+      } else if (message.toLowerCase().includes("invalid login credentials")) {
+        setAuthError("Email or password is incorrect. Check both details, or create an account first.");
+      } else {
+        setAuthError(message || "Unable to continue. Please try again.");
+      }
     } finally {
       setBusy(false);
     }
@@ -132,14 +153,23 @@ export default function CustomerStore() {
     setAuthMessage("");
     setBusy(true);
     try {
-      const cleaned = phone.replace(/[^\d+]/g, "");
-      const { error } = await supabase.auth.signInWithOtp({ phone: cleaned });
+      const digits = phone.replace(/\D/g, "");
+      if (!/^[6-9]\d{9}$/.test(digits)) {
+        throw new Error("Enter a valid 10-digit Indian mobile number.");
+      }
+      const indianPhone = `+91${digits}`;
+      const { error } = await supabase.auth.signInWithOtp({ phone: indianPhone });
       if (error) throw error;
-      setPhone(cleaned);
+      setPhone(digits);
       setOtpSent(true);
       setAuthMessage("OTP sent. Enter the verification code received on your phone.");
     } catch (error) {
-      setAuthError(error.message || "Could not send OTP. Check your Supabase phone authentication settings.");
+      const message = error.message || "";
+      if (message.toLowerCase().includes("unsupported phone provider")) {
+        setAuthError("Mobile OTP is not activated yet. The store administrator must configure an SMS provider in Supabase before customers can receive OTPs.");
+      } else {
+        setAuthError(message || "Could not send OTP. Please try again.");
+      }
     } finally {
       setBusy(false);
     }
@@ -148,12 +178,24 @@ export default function CustomerStore() {
   async function verifyOtp(e) {
     e.preventDefault();
     setAuthError("");
+    setAuthMessage("");
     setBusy(true);
     try {
-      const { error } = await supabase.auth.verifyOtp({ phone, token: otp.trim(), type: "sms" });
+      const digits = phone.replace(/\D/g, "");
+      if (!/^[6-9]\d{9}$/.test(digits)) {
+        throw new Error("Enter a valid 10-digit Indian mobile number.");
+      }
+      if (!/^\d{4,8}$/.test(otp.trim())) {
+        throw new Error("Enter the OTP sent to your mobile.");
+      }
+      const { error } = await supabase.auth.verifyOtp({
+        phone: `+91${digits}`,
+        token: otp.trim(),
+        type: "sms"
+      });
       if (error) throw error;
     } catch (error) {
-      setAuthError(error.message || "OTP verification failed.");
+      setAuthError(error.message || "OTP verification failed. Please request a new OTP.");
     } finally {
       setBusy(false);
     }
@@ -287,7 +329,21 @@ export default function CustomerStore() {
             </form>
           ) : (
             <form onSubmit={otpSent ? verifyOtp : sendOtp} style={styles.form}>
-              <input style={styles.input} type="tel" placeholder="Mobile number with country code (e.g. +91...)" value={phone} onChange={(e) => setPhone(e.target.value)} required />
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ ...styles.input, width: "auto", minWidth: 58, margin: 0, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, background: "#f8f0f3" }}>+91</span>
+                <input
+                  style={{ ...styles.input, flex: 1, minWidth: 0 }}
+                  type="tel"
+                  inputMode="numeric"
+                  autoComplete="tel-national"
+                  maxLength={10}
+                  placeholder="10-digit mobile number"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                  required
+                />
+              </div>
+              <p style={styles.smallMuted}>India only. +91 is added automatically.</p>
               {otpSent && <input style={styles.input} inputMode="numeric" placeholder="Enter OTP" value={otp} onChange={(e) => setOtp(e.target.value)} required />}
               <button style={styles.primaryButton} disabled={busy}>{busy ? "Please wait..." : otpSent ? "Verify OTP" : "Send OTP"}</button>
               {otpSent && <button type="button" style={styles.textButton} onClick={() => { setOtpSent(false); setOtp(""); }}>Change phone number</button>}
