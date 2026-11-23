@@ -53,6 +53,10 @@ export default function App() {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [orders, setOrders] = useState([]);
+
+  const [categoryName, setCategoryName] = useState("");
+  const [editingCategory, setEditingCategory] = useState(null);
+  const [savingCategory, setSavingCategory] = useState(false);
   const [parcelSlips, setParcelSlips] = useState([]);
 
   const [showProductForm, setShowProductForm] = useState(false);
@@ -121,6 +125,88 @@ export default function App() {
     setDataLoading(false);
   }
 
+  function startEditCategory(category) {
+  setEditingCategory(category);
+  setCategoryName(category.name || category.title || "");
+  setError("");
+  setSuccess("");
+}
+
+function cancelEditCategory() {
+  setEditingCategory(null);
+  setCategoryName("");
+}
+
+async function saveCategory(event) {
+  event.preventDefault();
+
+  const name = categoryName.trim();
+
+  if (!name) {
+    setError("Please enter a category name.");
+    return;
+  }
+
+  setSavingCategory(true);
+  setError("");
+  setSuccess("");
+
+  const result = editingCategory
+    ? await supabase
+        .from("categories")
+        .update({ name })
+        .eq("id", editingCategory.id)
+    : await supabase
+        .from("categories")
+        .insert({ name });
+
+  if (result.error) {
+    setError("Could not save category: " + result.error.message);
+  } else {
+    setSuccess(editingCategory ? "Category renamed!" : "Category added!");
+    cancelEditCategory();
+    await loadAllData();
+  }
+
+  setSavingCategory(false);
+}
+
+async function deleteCategory(category) {
+  const categoryLabel = category.name || category.title || "this category";
+
+  const { data: linkedProducts, error: checkError } = await supabase
+    .from("products")
+    .select("id")
+    .eq("category_id", category.id)
+    .limit(1);
+
+  if (checkError) {
+    setError("Could not check category products: " + checkError.message);
+    return;
+  }
+
+  if (linkedProducts && linkedProducts.length > 0) {
+    setError(
+      `Cannot delete "${categoryLabel}" because products are assigned to it. Change those products' categories first.`
+    );
+    return;
+  }
+
+  if (!window.confirm(`Delete category "${categoryLabel}"?`)) return;
+
+  const { error: deleteError } = await supabase
+    .from("categories")
+    .delete()
+    .eq("id", category.id);
+
+  if (deleteError) {
+    setError("Could not delete category: " + deleteError.message);
+  } else {
+    setSuccess("Category deleted.");
+    await loadAllData();
+  }
+}
+  
   async function login(event) {
     event.preventDefault();
     setLoginError("");
