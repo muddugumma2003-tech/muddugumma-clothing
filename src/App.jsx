@@ -224,14 +224,28 @@ export default function App() {
   }
 
   async function saveSettings(event) {
-    event.preventDefault(); setSavingSettings(true); setError(""); setSuccess("");
+    event.preventDefault();
+    if (savingSettings) return;
+
+    setSavingSettings(true);
+    setError("");
+    setSuccess("");
+
     try {
       let logoUrl = settings.logo_url || null;
-      if (settingsFiles.logo) logoUrl = await uploadImage(settingsFiles.logo, "store");
+
+      if (settingsFiles.logo) {
+        logoUrl = await uploadImage(settingsFiles.logo, "store");
+      }
+
       const uploadedBanners = [];
-      for (const file of settingsFiles.banners) uploadedBanners.push(await uploadImage(file, "banners"));
+      for (const file of settingsFiles.banners) {
+        uploadedBanners.push(await uploadImage(file, "banners"));
+      }
+
       const payload = {
-        id: settings.id || "main", logo_url: logoUrl,
+        id: settings.id || "main",
+        logo_url: logoUrl,
         welcome_title: settings.welcome_title || "Welcome to Muddugumma",
         brand_line: settings.brand_line || "",
         contact_number: settings.contact_number || "",
@@ -240,16 +254,57 @@ export default function App() {
         banner_urls: [...(settings.banner_urls || []), ...uploadedBanners],
         updated_at: new Date().toISOString()
       };
-      const { data: existing } = await supabase.from("store_settings").select("id").limit(1).maybeSingle();
-      const result = existing?.id
-        ? await supabase.from("store_settings").update(payload).eq("id", existing.id)
-        : await supabase.from("store_settings").insert(payload);
-      if (result.error) throw result.error;
-      setSettings(payload); setSettingsFiles({ logo: null, banners: [] });
+
+      // Check the lookup result instead of silently ignoring database errors.
+      const { data: existing, error: lookupError } = await supabase
+        .from("store_settings")
+        .select("id")
+        .limit(1)
+        .maybeSingle();
+
+      if (lookupError) throw lookupError;
+
+      let savedRow = null;
+
+      if (existing?.id) {
+        const { data, error: updateError } = await supabase
+          .from("store_settings")
+          .update(payload)
+          .eq("id", existing.id)
+          .select("*")
+          .maybeSingle();
+
+        if (updateError) throw updateError;
+        if (!data) {
+          throw new Error("No store settings row was updated. Please check the owner access policy for store_settings.");
+        }
+        savedRow = data;
+      } else {
+        const { data, error: insertError } = await supabase
+          .from("store_settings")
+          .insert(payload)
+          .select("*")
+          .single();
+
+        if (insertError) throw insertError;
+        savedRow = data;
+      }
+
+      // Only show success after Supabase returns the saved row.
+      if (!savedRow?.id) {
+        throw new Error("The database did not confirm that the store settings were saved.");
+      }
+
+      setSettings({ ...savedRow, banner_urls: savedRow.banner_urls || [] });
+      setSettingsFiles({ logo: null, banners: [] });
       setSettingsPreviews({ logo: "", banners: [] });
-      setSuccess("Store details saved successfully."); await loadAllData();
-    } catch (e) { setError("Could not save store details: " + e.message); }
-    setSavingSettings(false);
+      setSuccess("Store details saved successfully and are now available to customers.");
+      await loadAllData();
+    } catch (e) {
+      setError("Could not save store details: " + (e?.message || "Unknown error"));
+    } finally {
+      setSavingSettings(false);
+    }
   }
 
   async function deleteParcelRecord(slip) {
