@@ -112,11 +112,48 @@ export default function CustomerStore() {
     " added to cart!"
   );
 }
+function updateCartQuantity(productId, size, change) {
+  setCart((previous) =>
+    previous
+      .map((item) => {
+        if (
+          item.id === productId &&
+          (item.selectedSize || "") === size
+        ) {
+          return {
+            ...item,
+            quantity: item.quantity + change
+          };
+        }
 
-  const cartCount = cart.reduce(
-    (total, item) => total + item.quantity,
-    0
+        return item;
+      })
+      .filter((item) => item.quantity > 0)
   );
+}
+
+function removeCartItem(productId, size) {
+  setCart((previous) =>
+    previous.filter(
+      (item) =>
+        !(
+          item.id === productId &&
+          (item.selectedSize || "") === size
+        )
+    )
+  );
+}
+  
+  const cartCount = cart.reduce(
+  (total, item) => total + item.quantity,
+  0
+);
+
+const cartTotal = cart.reduce(
+  (total, item) =>
+    total + Number(item.price || 0) * item.quantity,
+  0
+);
 
   return (
     <div style={{
@@ -139,9 +176,26 @@ export default function CustomerStore() {
         </p>
         <div style={{ marginTop: 15 }}>
           <span>Home　 |　 Shop　 |　 Contact</span>
-          <span style={{ marginLeft: 20 }}>
-            🛍️ Cart ({cartCount})
-          </span>
+
+<button
+  onClick={() => {
+    document.getElementById("customer-cart").scrollIntoView({
+      behavior: "smooth"
+    });
+  }}
+  style={{
+    marginLeft: 20,
+    background: "transparent",
+    color: "white",
+    border: "1px solid #ead5b0",
+    padding: "9px 15px",
+    borderRadius: 6,
+    cursor: "pointer",
+    fontSize: 15
+  }}
+>
+  🛍️ Cart ({cartCount})
+</button>
         </div>
       </header>
 
@@ -380,7 +434,7 @@ export default function CustomerStore() {
                 </div>
 
         {/* CUSTOMER CART */}
-        <section style={{
+        <section id="customer-cart" style={{
           marginTop: 45,
           padding: 25,
           background: "white",
@@ -404,14 +458,70 @@ export default function CustomerStore() {
                   borderBottom: "1px solid #eee"
                 }}
               >
-                <div>
+                                <div style={{ flex: 1 }}>
                   <strong>{item.name}</strong>
+
                   <p style={{ margin: "5px 0" }}>
                     Size: {item.selectedSize || "Not specified"}
                   </p>
-                  <p style={{ margin: 0 }}>
-                    {money(item.price)} × {item.quantity}
+
+                  <p style={{ margin: "5px 0" }}>
+                    Price: {money(item.price)}
                   </p>
+
+                  <div style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                    marginTop: 12
+                  }}>
+                    <button
+                      onClick={() =>
+                        updateCartQuantity(
+                          item.id,
+                          item.selectedSize || "",
+                          -1
+                        )
+                      }
+                      style={cartControlButton}
+                    >
+                      −
+                    </button>
+
+                    <strong>{item.quantity}</strong>
+
+                    <button
+                      onClick={() =>
+                        updateCartQuantity(
+                          item.id,
+                          item.selectedSize || "",
+                          1
+                        )
+                      }
+                      style={cartControlButton}
+                    >
+                      +
+                    </button>
+
+                    <button
+                      onClick={() =>
+                        removeCartItem(
+                          item.id,
+                          item.selectedSize || ""
+                        )
+                      }
+                      style={{
+                        border: 0,
+                        background: "#fff0f0",
+                        color: "#c0394b",
+                        padding: "8px 12px",
+                        borderRadius: 5,
+                        cursor: "pointer"
+                      }}
+                    >
+                      Remove
+                    </button>
+                  </div>
                 </div>
 
                 <strong>
@@ -419,6 +529,23 @@ export default function CustomerStore() {
                 </strong>
               </div>
             ))
+                    )}
+
+          {cart.length > 0 && (
+            <div style={{
+              marginTop: 25,
+              paddingTop: 20,
+              borderTop: "2px solid #ead5df",
+              textAlign: "right"
+            }}>
+              <h2>
+                Total Amount: {money(cartTotal)}
+              </h2>
+
+              <p style={{ color: "#987b89" }}>
+                Total Items: {cartCount}
+              </p>
+            </div>
           )}
         </section>
       </main>
