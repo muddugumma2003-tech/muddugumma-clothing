@@ -62,15 +62,16 @@ export default function App() {
   const [imagePreview, setImagePreview] = useState("");
 
   const [productForm, setProductForm] = useState({
-    name: "",
-    description: "",
-    price: "",
-    original_price: "",
-    sku: "",
-    category_id: "",
-    is_available: true,
-    is_active: true
-  });
+  name: "",
+  description: "",
+  price: "",
+  original_price: "",
+  sku: "",
+  category_id: "",
+  sizes: [],
+  is_available: true,
+  is_active: true
+});
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -144,39 +145,40 @@ export default function App() {
   }
 
   function openNewProduct() {
-    setEditingProduct(null);
-    setProductForm({
-      name: "",
-      description: "",
-      price: "",
-      original_price: "",
-      sku: "",
-      category_id: "",
-      is_available: true,
-      is_active: true
-    });
-    setImageFile(null);
-    setImagePreview("");
-    setShowProductForm(true);
-  }
+  setEditingProduct(null);
+  setProductForm({
+    name: "",
+    description: "",
+    price: "",
+    original_price: "",
+    sku: "",
+    category_id: "",
+    sizes: [],
+    is_available: true,
+    is_active: true
+  });
+  setImageFile(null);
+  setImagePreview("");
+  setShowProductForm(true);
+}
 
   function openEditProduct(product) {
-    setEditingProduct(product);
-    setProductForm({
-      name: product.name || "",
-      description: product.description || "",
-      price: product.price ?? "",
-      original_price: product.original_price ?? "",
-      sku: product.sku || "",
-      category_id: product.category_id || "",
-      is_available: product.is_available ?? true,
-      is_active: product.is_active ?? true
-    });
-    setImageFile(null);
-    setImagePreview(product.image_url || "");
-    setShowProductForm(true);
-  }
-
+  setEditingProduct(product);
+  setProductForm({
+    name: product.name || "",
+    description: product.description || "",
+    price: product.price ?? "",
+    original_price: product.original_price ?? "",
+    sku: product.sku || "",
+    category_id: product.category_id || "",
+    sizes: Array.isArray(product.sizes) ? product.sizes : [],
+    is_available: product.is_available ?? true,
+    is_active: product.is_active ?? true
+  });
+  setImageFile(null);
+  setImagePreview(product.image_url || "");
+  setShowProductForm(true);
+}
   async function saveProduct(event) {
     event.preventDefault();
     setSaving(true);
@@ -212,18 +214,19 @@ if (imageFile) {
   imageUrl = publicUrlData.publicUrl;
 }
     const payload = {
-      name: productForm.name.trim(),
-      description: productForm.description.trim(),
-      price: Number(productForm.price),
-      image_url: imageUrl,
-      original_price: productForm.original_price
-        ? Number(productForm.original_price)
-        : null,
-      sku: productForm.sku.trim() || null,
-      category_id: productForm.category_id || null,
-      is_available: productForm.is_available,
-      is_active: productForm.is_active
-    };
+  name: productForm.name.trim(),
+  description: productForm.description.trim(),
+  price: Number(productForm.price),
+  image_url: imageUrl,
+  original_price: productForm.original_price
+    ? Number(productForm.original_price)
+    : null,
+  sku: productForm.sku.trim() || null,
+  category_id: productForm.category_id || null,
+  sizes: productForm.sizes,
+  is_available: productForm.is_available,
+  is_active: productForm.is_active
+};
 
     if (!payload.name || !Number.isFinite(payload.price) || payload.price < 0) {
       setError("Enter a valid product name and price.");
