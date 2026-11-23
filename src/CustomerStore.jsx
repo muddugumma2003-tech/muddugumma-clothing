@@ -15,6 +15,8 @@ export default function CustomerStore() {
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [search, setSearch] = useState("");
   const [cart, setCart] = useState([]);
+  const [selectedSizes, setSelectedSizes] = useState({});
+  const [cartMessage, setCartMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -67,22 +69,49 @@ export default function CustomerStore() {
   });
 
   function addToCart(product) {
-    setCart((previous) => {
-      const existing = previous.find(
-        (item) => item.id === product.id
-      );
+  const availableSizes = Array.isArray(product.sizes)
+    ? product.sizes
+    : [];
 
-      if (existing) {
-        return previous.map((item) =>
-          item.id === product.id
-            ? { ...item, quantity: item.quantity + 1 }
-            : item
-        );
-      }
+  const selectedSize = selectedSizes[product.id] || "";
 
-      return [...previous, { ...product, quantity: 1 }];
-    });
+  if (availableSizes.length > 0 && !selectedSize) {
+    setCartMessage("Please select a size for " + product.name);
+    return;
   }
+
+  setCart((previous) => {
+    const existing = previous.find(
+      (item) =>
+        item.id === product.id &&
+        (item.selectedSize || "") === selectedSize
+    );
+
+    if (existing) {
+      return previous.map((item) =>
+        item.id === product.id &&
+        (item.selectedSize || "") === selectedSize
+          ? { ...item, quantity: item.quantity + 1 }
+          : item
+      );
+    }
+
+    return [
+      ...previous,
+      {
+        ...product,
+        selectedSize,
+        quantity: 1
+      }
+    ];
+  });
+
+  setCartMessage(
+    product.name +
+    (selectedSize ? " (" + selectedSize + ")" : "") +
+    " added to cart!"
+  );
+}
 
   const cartCount = cart.reduce(
     (total, item) => total + item.quantity,
@@ -183,7 +212,7 @@ export default function CustomerStore() {
           ))}
         </div>
 
-        <input
+                <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search for sarees, dresses, kurtis..."
@@ -196,6 +225,18 @@ export default function CustomerStore() {
             marginBottom: 25
           }}
         />
+
+        {cartMessage && (
+          <p style={{
+            background: "#f5e4df",
+            color: "#75435c",
+            padding: 12,
+            borderRadius: 8,
+            marginBottom: 20
+          }}>
+            {cartMessage}
+          </p>
+        )}
 
         {loading && <p>Loading collections...</p>}
 
@@ -254,10 +295,55 @@ export default function CustomerStore() {
                 </div>
 
                 <div style={{ padding: 15 }}>
-                  <h3>{product.name}</h3>
-                  <p style={{ color: "#987b89", fontSize: 13 }}>
-                    {product.description}
-                  </p>
+  <h3>{product.name}</h3>
+
+  <p style={{ color: "#987b89", fontSize: 13 }}>
+    {product.description}
+  </p>
+
+  {Array.isArray(product.sizes) && product.sizes.length > 0 && (
+    <div style={{ marginTop: 12, marginBottom: 12 }}>
+      <p style={{ fontSize: 13, fontWeight: "bold", marginBottom: 8 }}>
+        Select Size:
+      </p>
+
+      <div style={{
+        display: "flex",
+        flexWrap: "wrap",
+        gap: 7
+      }}>
+        {product.sizes.map((size) => (
+          <button
+            key={size}
+            type="button"
+            onClick={() => {
+              setSelectedSizes((previous) => ({
+                ...previous,
+                [product.id]: size
+              }));
+              setCartMessage("");
+            }}
+            style={{
+              padding: "8px 12px",
+              borderRadius: 5,
+              border: "1px solid #75435c",
+              background:
+                selectedSizes[product.id] === size
+                  ? "#75435c"
+                  : "white",
+              color:
+                selectedSizes[product.id] === size
+                  ? "white"
+                  : "#75435c",
+              cursor: "pointer"
+            }}
+          >
+            {size}
+          </button>
+        ))}
+      </div>
+    </div>
+  )}
 
                   <strong style={{ color: "#75435c" }}>
                     {money(product.price)}
@@ -291,7 +377,50 @@ export default function CustomerStore() {
               </article>
             );
           })}
-        </div>
+                </div>
+
+        {/* CUSTOMER CART */}
+        <section style={{
+          marginTop: 45,
+          padding: 25,
+          background: "white",
+          border: "1px solid #f0e2e5",
+          borderRadius: 12
+        }}>
+          <h2>🛍️ Your Shopping Cart ({cartCount})</h2>
+
+          {cart.length === 0 ? (
+            <p>Your cart is empty.</p>
+          ) : (
+            cart.map((item) => (
+              <div
+                key={item.id + "-" + (item.selectedSize || "no-size")}
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: 15,
+                  padding: "15px 0",
+                  borderBottom: "1px solid #eee"
+                }}
+              >
+                <div>
+                  <strong>{item.name}</strong>
+                  <p style={{ margin: "5px 0" }}>
+                    Size: {item.selectedSize || "Not specified"}
+                  </p>
+                  <p style={{ margin: 0 }}>
+                    {money(item.price)} × {item.quantity}
+                  </p>
+                </div>
+
+                <strong>
+                  {money(Number(item.price || 0) * item.quantity)}
+                </strong>
+              </div>
+            ))
+          )}
+        </section>
       </main>
 
       <footer style={{
