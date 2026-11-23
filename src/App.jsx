@@ -142,23 +142,29 @@ async function saveCategory(event) {
 
   const name = categoryName.trim();
 
-  if (!name) {
-    setError("Please enter a category name.");
-    return;
-  }
+if (!name) {
+  setError("Please enter a category name.");
+  return;
+}
+
+const slug = name
+  .toLowerCase()
+  .trim()
+  .replace(/[^a-z0-9]+/g, "-")
+  .replace(/^-|-$/g, "");
 
   setSavingCategory(true);
   setError("");
   setSuccess("");
 
   const result = editingCategory
-    ? await supabase
-        .from("categories")
-        .update({ name })
-        .eq("id", editingCategory.id)
-    : await supabase
-        .from("categories")
-        .insert({ name });
+  ? await supabase
+      .from("categories")
+      .update({ name, slug })
+      .eq("id", editingCategory.id)
+  : await supabase
+      .from("categories")
+      .insert({ name, slug });
 
   if (result.error) {
     setError("Could not save category: " + result.error.message);
