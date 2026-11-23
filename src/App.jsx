@@ -1,6 +1,7 @@
 
 import React, { useEffect, useState } from "react";
 import { supabase } from "./supabase";
+import CustomerStore from "./CustomerStore";
 import {
   LayoutDashboard, ShoppingBag, Package, Tags, Truck,
   LogOut, Plus, Search, Pencil, Trash2, RefreshCw,
@@ -256,6 +257,11 @@ export default function App() {
       .includes(search.toLowerCase())
   );
 
+    // Public customer shopping website
+  if (window.location.pathname === "/shop") {
+    return <CustomerStore />;
+  }
+  
   if (loading) {
     return <div style={centerStyle}>Loading Muddugumma Clothing...</div>;
   }
