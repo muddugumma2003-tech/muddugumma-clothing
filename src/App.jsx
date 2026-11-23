@@ -748,27 +748,82 @@ if (imageFile) {
           )}
 
           {page === "categories" && (
-            <div style={panelStyle}>
-              <h3 style={{ marginBottom: 20 }}>
-                Product Categories ({categories.length})
-              </h3>
-              {categories.length === 0 ? (
-                <EmptyState text="No categories found. Create categories in your Supabase categories table." />
-              ) : (
-                <div style={categoryGrid}>
-                  {categories.map((category) => (
-                    <div key={category.id} style={categoryCard}>
-                      <Tags color="#a44d70" />
-                      <b>{category.name || category.title || "Category"}</b>
-                      <small style={{ color: "#987b89" }}>
-                        {category.description || "Clothing category"}
-                      </small>
-                    </div>
-                  ))}
-                </div>
-              )}
+  <div style={panelStyle}>
+    <h3 style={{ marginBottom: 20 }}>
+      Manage Categories ({categories.length})
+    </h3>
+
+    <form
+      onSubmit={saveCategory}
+      style={{
+        display: "flex",
+        gap: 10,
+        flexWrap: "wrap",
+        marginBottom: 25
+      }}
+    >
+      <input
+        style={{ ...inputStyle, flex: "1 1 220px", marginTop: 0 }}
+        value={categoryName}
+        onChange={(e) => setCategoryName(e.target.value)}
+        placeholder="Enter category name"
+        required
+      />
+
+      <button type="submit" disabled={savingCategory} style={primaryButton}>
+        {savingCategory
+          ? "Saving..."
+          : editingCategory
+          ? "Update Category"
+          : "Add Category"}
+      </button>
+
+      {editingCategory && (
+        <button
+          type="button"
+          onClick={cancelEditCategory}
+          style={secondaryButton}
+        >
+          Cancel
+        </button>
+      )}
+    </form>
+
+    {categories.length === 0 ? (
+      <EmptyState text="No categories yet. Add your first category above." />
+    ) : (
+      <div style={categoryGrid}>
+        {categories.map((category) => (
+          <div key={category.id} style={categoryCard}>
+            <Tags color="#a44d70" />
+            <b>{category.name || category.title || "Category"}</b>
+            <small style={{ color: "#987b89" }}>Clothing category</small>
+
+            <div style={{ display: "flex", gap: 8, marginTop: 5 }}>
+              <button
+                type="button"
+                style={iconButton}
+                onClick={() => startEditCategory(category)}
+                title="Rename category"
+              >
+                <Pencil size={16} />
+              </button>
+
+              <button
+                type="button"
+                style={{ ...iconButton, color: "#c34d58" }}
+                onClick={() => deleteCategory(category)}
+                title="Delete category"
+              >
+                <Trash2 size={16} />
+              </button>
             </div>
-          )}
+          </div>
+        ))}
+      </div>
+    )}
+  </div>
+)}
 
           {page === "orders" && (
             <div style={panelStyle}>
