@@ -58,6 +58,8 @@ export default function App() {
   const [showProductForm, setShowProductForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState("");
 
   const [productForm, setProductForm] = useState({
     name: "",
@@ -153,6 +155,8 @@ export default function App() {
       is_available: true,
       is_active: true
     });
+    setImageFile(null);
+    setImagePreview("");
     setShowProductForm(true);
   }
 
@@ -168,6 +172,8 @@ export default function App() {
       is_available: product.is_available ?? true,
       is_active: product.is_active ?? true
     });
+    setImageFile(null);
+    setImagePreview(product.image_url || "");
     setShowProductForm(true);
   }
 
@@ -176,11 +182,40 @@ export default function App() {
     setSaving(true);
     setError("");
     setSuccess("");
+    // Keep the existing image unless a new image is uploaded
+let imageUrl = editingProduct?.image_url || null;
 
+if (imageFile) {
+  const extension = imageFile.name.split(".").pop()?.toLowerCase() || "jpg";
+
+  const filePath =
+    `products/${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from("product-images")
+    .upload(filePath, imageFile, {
+      cacheControl: "3600",
+      upsert: false,
+      contentType: imageFile.type
+    });
+
+  if (uploadError) {
+    setError("Image upload failed: " + uploadError.message);
+    setSaving(false);
+    return;
+  }
+
+  const { data: publicUrlData } = supabase.storage
+    .from("product-images")
+    .getPublicUrl(filePath);
+
+  imageUrl = publicUrlData.publicUrl;
+}
     const payload = {
       name: productForm.name.trim(),
       description: productForm.description.trim(),
       price: Number(productForm.price),
+      image_url: imageUrl,
       original_price: productForm.original_price
         ? Number(productForm.original_price)
         : null,
@@ -798,6 +833,58 @@ export default function App() {
               })}
               placeholder="Describe your product"
             />
+            <label style={formLabel}>Product Photo</label>
+
+<input
+  type="file"
+  accept="image/*"
+  style={inputStyle}
+  onChange={(e) => {
+    const file = e.target.files?.[0];
+
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      setError("Please select an image file.");
+      e.target.value = "";
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setError("Image size must be less than 5 MB.");
+      e.target.value = "";
+      return;
+    }
+
+    setImageFile(file);
+    setImagePreview(URL.createObjectURL(file));
+    setError("");
+  }}
+/>
+
+{imagePreview && (
+  <div style={{ marginTop: 15 }}>
+    <p style={{ fontSize: 13, marginBottom: 8 }}>
+      Product photo preview:
+    </p>
+
+    <img
+      src={imagePreview}
+      alt="Product preview"
+      style={{
+        width: 160,
+        height: 180,
+        objectFit: "cover",
+        borderRadius: 10,
+        border: "1px solid #eadde3"
+      }}
+    />
+  </div>
+)}
+
+<p style={{ fontSize: 12, color: "#987b89" }}>
+  Select JPG, PNG or WEBP. Maximum size: 5 MB.
+</p>
 
             <div style={formGrid}>
               <div>
